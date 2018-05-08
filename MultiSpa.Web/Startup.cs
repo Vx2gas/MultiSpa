@@ -13,6 +13,8 @@ using MultiSpa.Web.Models;
 using MultiSpa.Web.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.SpaServices.AngularCli;
+using System.Threading;
+using Microsoft.AspNetCore.Rewrite;
 
 namespace MultiSpa.Web
 {
@@ -37,11 +39,15 @@ namespace MultiSpa.Web
 
             services.AddTransient<IEmailSender, EmailSender>();
 
-            services.AddMvc();
+			services.AddMvc()
+				.AddRazorPagesOptions(options =>
+				{
+					options.Conventions.AuthorizeFolder("/members");
+				});
 
 
-            // In production, the Angular files will be served from this directory
-            services.AddSpaStaticFiles(configuration =>
+			// In production, the Angular files will be served from this directory
+			services.AddSpaStaticFiles(configuration =>
             {
                 configuration.RootPath = "ClientApp/dist";
 
@@ -64,10 +70,9 @@ namespace MultiSpa.Web
             {
                 app.UseExceptionHandler("/Home/Error");
             }
+			
 
             app.UseStaticFiles();
-            //app.UseSpaStaticFiles();
-
             app.UseAuthentication();
 
             app.UseMvc(routes =>
@@ -79,16 +84,43 @@ namespace MultiSpa.Web
 
             app.Map(new PathString("/members"), appRenewals =>
             {
-                appRenewals.UseSpaStaticFiles();
-                appRenewals.UsePathBase(new PathString("/members"));
-                appRenewals.UseSpa(spa =>
+				//app.UseAngularDefaultRoute();
+
+				//appRenewals.UsePathBase(new PathString("/"));
+
+
+				//appRenewals.UseRewriter(new Microsoft.AspNetCore.Rewrite.RewriteOptions()
+				//	.AddRewrite(@"^members/", "/", false));
+
+				// setup custom middleware to set the current thread principal to the user
+				appRenewals.Use(async (context, next) =>
+				{
+					var httpContext = (context as HttpContext);
+					httpContext.Request.PathBase = new PathString("/members");
+					if (httpContext.User.Identity.IsAuthenticated)
+					{
+						Thread.CurrentPrincipal = httpContext.User;
+						await next();
+					}
+					else
+					{
+						context.Response.Redirect("/account/login");
+					}
+				});
+
+
+				appRenewals.UseSpaStaticFiles();
+				appRenewals.UsePathBase(new PathString("/members"));
+				appRenewals.UseSpa(spa =>
                 {
                     spa.Options.SourcePath = "ClientApp";
 
                     if (env.IsDevelopment())
                     {
                         spa.UseAngularCliServer(npmScript: "start");
-                    }
+
+						//spa.UseProxyToSpaDevelopmentServer("http://localhost:4200");
+					}
                 });
             });
 
