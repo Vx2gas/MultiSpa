@@ -15,6 +15,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.SpaServices.AngularCli;
 using System.Threading;
 using Microsoft.AspNetCore.Rewrite;
+using Microsoft.AspNetCore.Http.Extensions;
 
 namespace MultiSpa.Web
 {
@@ -96,7 +97,7 @@ namespace MultiSpa.Web
 				appRenewals.Use(async (context, next) =>
 				{
 					var httpContext = (context as HttpContext);
-					httpContext.Request.PathBase = new PathString("/members");
+					//httpContext.Request.PathBase = new PathString("/members");
 					if (httpContext.User.Identity.IsAuthenticated)
 					{
 						Thread.CurrentPrincipal = httpContext.User;
@@ -104,22 +105,22 @@ namespace MultiSpa.Web
 					}
 					else
 					{
-						context.Response.Redirect("/account/login");
+						
+						context.Response.Redirect($"/account/login?ReturnUrl={context.Request.GetEncodedPathAndQuery()}");
 					}
 				});
 
-
 				appRenewals.UseSpaStaticFiles();
-				appRenewals.UsePathBase(new PathString("/members"));
+				//appRenewals.UsePathBase(new PathString("/members"));
 				appRenewals.UseSpa(spa =>
                 {
                     spa.Options.SourcePath = "ClientApp";
 
                     if (env.IsDevelopment())
                     {
-                        spa.UseAngularCliServer(npmScript: "start");
+                        //spa.UseAngularCliServer(npmScript: "start");
 
-						//spa.UseProxyToSpaDevelopmentServer("http://localhost:4200");
+						spa.UseProxyToSpaDevelopmentServer("http://localhost:4200");
 					}
                 });
             });
